@@ -1,0 +1,130 @@
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql" url = env("DATABASE_URL") }
+
+enum Role { ADMIN RESTAURANT PARTNER }
+enum CampaignStatus { DRAFT ACTIVE PAUSED COMPLETED }
+enum ApplicationStatus { PENDING ACCEPTED REJECTED CANCELLED }
+enum CollaborationStatus { REQUESTED ACCEPTED SCHEDULED CONTENT_REVIEW PUBLISHED COMPLETED CANCELLED }
+enum SubscriptionStatus { ACTIVE PAST_DUE CANCELLED }
+enum PaymentStatus { PENDING COMPLETED FAILED REFUNDED }
+
+model User {
+ id String @id @default(cuid())
+ email String @unique
+ passwordHash String
+ name String
+ role Role
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ restaurant Restaurant?
+ partner Partner?
+}
+model Restaurant {
+ id String @id @default(cuid())
+ userId String @unique
+ user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+ name String
+ city String
+ category String?
+ instagram String?
+ description String?
+ credits Int @default(0)
+ subscription Subscription?
+ campaigns Campaign[]
+ applications Application[]
+ collaborations Collaboration[]
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+}
+model Partner {
+ id String @id @default(cuid())
+ userId String @unique
+ user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+ handle String?
+ city String
+ categories String[]
+ followers Int @default(0)
+ engagementRate Float?
+ instagram String?
+ tiktok String?
+ verified Boolean @default(false)
+ applications Application[]
+ collaborations Collaboration[]
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+}
+model Campaign {
+ id String @id @default(cuid())
+ restaurantId String
+ restaurant Restaurant @relation(fields:[restaurantId], references:[id], onDelete:Cascade)
+ title String
+ description String
+ city String
+ category String?
+ minFollowers Int @default(2000)
+ contentTypes String[]
+ slots Int @default(1)
+ status CampaignStatus @default(DRAFT)
+ startsAt DateTime?
+ endsAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ applications Application[]
+ collaborations Collaboration[]
+}
+model Application {
+ id String @id @default(cuid())
+ campaignId String
+ partnerId String
+ restaurantId String
+ campaign Campaign @relation(fields:[campaignId], references:[id], onDelete:Cascade)
+ partner Partner @relation(fields:[partnerId], references:[id], onDelete:Cascade)
+ restaurant Restaurant @relation(fields:[restaurantId], references:[id], onDelete:Cascade)
+ status ApplicationStatus @default(PENDING)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@unique([campaignId,partnerId])
+}
+model Collaboration {
+ id String @id @default(cuid())
+ campaignId String
+ restaurantId String
+ partnerId String
+ campaign Campaign @relation(fields:[campaignId], references:[id], onDelete:Cascade)
+ restaurant Restaurant @relation(fields:[restaurantId], references:[id], onDelete:Cascade)
+ partner Partner @relation(fields:[partnerId], references:[id], onDelete:Cascade)
+ status CollaborationStatus @default(REQUESTED)
+ scheduledAt DateTime?
+ contentUrl String?
+ notes String?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+}
+model Subscription {
+ id String @id @default(cuid())
+ restaurantId String @unique
+ restaurant Restaurant @relation(fields:[restaurantId], references:[id], onDelete:Cascade)
+ plan String @default("STANDARD")
+ amount Int @default(2500)
+ currency String @default("MAD")
+ monthlyCredits Int @default(6)
+ status SubscriptionStatus @default(ACTIVE)
+ provider String?
+ providerCustomerId String?
+ providerSubscriptionId String?
+ currentPeriodEnd DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+}
+model Payment {
+ id String @id @default(cuid())
+ restaurantId String
+ restaurant Restaurant @relation(fields:[restaurantId], references:[id], onDelete:Cascade)
+ provider String
+ providerOrderId String? @unique
+ amount Int
+ currency String
+ status PaymentStatus @default(PENDING)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+}
